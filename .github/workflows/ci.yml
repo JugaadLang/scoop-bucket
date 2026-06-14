@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - 'main'
+      - 'master'
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        shell: [powershell, pwsh]
+    defaults:
+      run:
+        shell: ${{ matrix.shell }}
+    steps:
+      - name: Checkout Bucket
+        uses: actions/checkout@v4
+        with:
+          # Need at least 2 commits to properly gather changed files for linting
+          fetch-depth: 2
+          path: 'my_bucket'
+
+      - name: Checkout Scoop
+        uses: actions/checkout@v4
+        with:
+          repository: ScoopInstaller/Scoop
+          path: 'scoop_core'
+
+      - name: Install and cache test dependencies
+        uses: potatoqualitee/psmodulecache@v6.2.1
+        with:
+          modules-to-cache: BuildHelpers, Pester
+          shell: ${{ matrix.shell }}
+
+      - name: Run tests
+        run: |
+          $env:SCOOP_HOME="$(Convert-Path '.\scoop_core')"
+          .\my_bucket\bin\test.ps1
